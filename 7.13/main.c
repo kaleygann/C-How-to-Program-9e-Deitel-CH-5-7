@@ -1,10 +1,7 @@
-/* 7.12
- * This program will modify Fig 7.16 so that the card-dealing function deals a five-card poker hand. The
- * program will contain functions to determine whether the hand contains a pair, two pairs, three of a kind,
- * four of a kind, a flush, or a straight then display the hand and the results */
+/* 7.13
+ * This program will modify the program in 7.12 to deal
+ * two hands then compare the hands. */
 
-// fig07_16.c
-// Card shuffling and dealing.
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -16,7 +13,9 @@
 
 // function prototypes
 void shuffle(int deck[][FACES]);
-void deal(int deck[][FACES], const char *face[], const char *suit[], char *faces[], char *suits[]);
+void deal(int deck[][FACES], const char *face[], const char *suit[], char *faces1[], char *suits1[], char *faces2[], char *suits2[]);
+int compareHands(char *faces1[], char *faces2[], char *suits1[], char *suits2[], int (*evaluate)(char *faces[], char *suits[]));
+int evaluateHand(char *faces[], char *suits[]);
 int pair(char *faces[]);
 int twoPairs(char *faces[]);
 int threeKind(char *faces[]);
@@ -29,8 +28,11 @@ int main(void) {
     // initialize deck array
     int deck[SUITS][FACES] = {0};
 
-    char *faces[5];
-    char *suits[5];
+    // pointer arrays to store each hand's faces and suits
+    char *faces1[5] = {};
+    char *suits1[5] = {};
+    char *faces2[5] = {};
+    char *suits2[5] = {};
 
     srand(time(NULL)); // seed random-number generator
     shuffle(deck); // shuffle the deck
@@ -42,27 +44,17 @@ int main(void) {
     const char *face[FACES] = {"Ace", "Deuce", "Three", "Four", "Five",
                                "Six", "Seven", "Eight", "Nine", "Ten", "Jack", "Queen", "King"};
 
-    deal(deck, face, suit, faces, suits); // deal the deck
+    deal(deck, face, suit, faces1, suits1, faces2, suits2); // deal and compare the deck
 
-    // function calls
-    if (pair(faces)) {
-        puts("\nPair found.");
+    if (compareHands(faces1, faces2, suits1, suits2, evaluateHand) == 1) {
+        printf("\nPlayer 1 wins!");
     }
-    if (twoPairs(faces)) {
-        puts("Two pairs found.");
+    else if (compareHands(faces1, faces2, suits1, suits2, evaluateHand) == 2) {
+        printf("\nPlayer 2 wins!");
     }
-    if (threeKind(faces)) {
-        puts("Three of a kind found.");
-    }
-    if (fourKind(faces)) {
-        puts("Four of a kind found.");
-    }
-    if (flush(suits)) {
-        puts("Flush found.");
-    }
-    if (straight(faces)) {
-        puts("\nStraight found.");
-    }
+    else
+        printf("\nIt's a draw!");
+
 }  // end main
 
 // shuffle cards in deck
@@ -82,23 +74,76 @@ void shuffle(int deck[][FACES]) {
     }
 }
 
-// deal cards in deck
-void deal(int deck[][FACES], const char *face[], const char *suit[], char *faces[], char *suits[]) {
-    // deal each of the 5 cards
-    for (size_t card = 1; card <= 5; ++card) {
-        // loop through rows of deck
-        for (size_t row = 0; row < SUITS; ++row) {
-            // loop through columns of deck for current row
-            for (size_t column = 0; column < FACES; ++column) {
-                // if slot contains current card, display card
-                if (deck[row][column] == card) {
-                    faces[card - 1] = face[column];  // set first elements of faces to first face in deck
-                    suits[card - 1] = suit[row];  // set first element of suits to first suit in deck
-                    printf("%s of %s  ", faces[card - 1], suits[card -1]);  // display hand
+// deal function to deal each hand
+void deal(int deck[][FACES], const char *face[], const char *suit[], char *faces1[], char *suits1[], char *faces2[],
+          char *suits2[]) {
+
+    // loop for two hands
+    for (size_t hand = 0; hand < 2; ++hand) {
+        printf("\nHand %zu:\n", hand + 1);  // header for each hand
+        for (size_t card = 1; card <= 5; ++card) {
+            // loop through rows of deck
+            for (size_t row = 0; row < SUITS; ++row) {
+                // loop through columns of deck
+                for (size_t column = 0; column < FACES; ++column) {
+                    // if slot contains current card, display card
+                    if (deck[row][column] == card + 5 * hand) {  // adjust card number for hands
+                        if (hand == 0) {  // first hand
+                            faces1[card - 1] = face[column];
+                            suits1[card - 1] = suit[row];
+                            printf("%s of %s  ", faces1[card - 1], suits1[card - 1]);  // display hand
+                        }
+                        else  {  // second hand
+                            faces2[card - 1] = face[column];
+                            suits2[card - 1] = suit[row];
+                            printf("%s of %s  ", faces2[card - 1], suits2[card - 1]);  // display hand
+                        }
+                    }
                 }
             }
         }
+        printf("\n");
     }
+}
+
+// function tha evaluates the hand
+int evaluateHand(char *faces[], char *suits[]) {
+
+    if (straight(faces) && flush(suits)) {  // return 6 points if straight flush (royal flush?)
+        return 6;
+    }
+    else if (flush(suits)) {  // return 5 points if flush
+        return 5;
+    }
+    else if (fourKind(faces)) {  // return 4 points if 4 of a kind
+        return 4;
+    }
+    else if (threeKind(faces)) {  // return three points if three of a kind
+        return 3;
+    }
+    else if (twoPairs(faces)) {  // return 2 points if 2 pairs
+        return 2;
+    }
+    else if (pair(faces)) {  // return 1 point if 1 pair
+        return 1;
+    }
+    return 0;  // return 0 points if none of the above is found in hand
+}
+
+// function to compare the two hands
+// uses a pointer to the evaluateHand function
+int compareHands(char *faces1[], char *faces2[], char *suits1[], char *suits2[], int (*evaluate)(char *faces[], char *suits[])) {
+
+    // if Hand 1 has higher points than Hand 2
+    if ((*evaluate)(faces1, suits1) > (*evaluate)(faces2, suits2))  {
+        return 1;
+    }
+    // if Hand 2 has more points than Hand 1
+    else if ((*evaluate)(faces1, suits1) < (*evaluate)(faces2, suits2)) {
+        return 2;
+    }
+    else  // if there is a tie
+        return 0;
 }
 
 // function to check if hand contains a pair
@@ -116,6 +161,7 @@ int pair(char *faces[]) {
     return 0;
 }
 
+// function to check if hand has two pairs
 int twoPairs(char *faces[]) {
 
     // array to keep track of pairs
@@ -224,3 +270,4 @@ int straight(char *faces[]) {
     }
     return 1;  // return true if cards are consecutive
 }
+
